@@ -1,0 +1,12 @@
+{
+  "name": "google-tasks-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Remote MCP connector that lets Claude read and manage your Google Tasks",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test",
+    "get-token": "node scripts/get-refresh-token.mjs"
+  }
+}
