@@ -24,25 +24,60 @@ refresh token as a server secret. Claude reaches the server at
 
 ## Setup
 
-### 1. Google Cloud (≈5 min)
+### 1. Google Cloud (≈10 min, all in the browser)
 
-1. Go to <https://console.cloud.google.com/>, create a project (e.g. "Claude Tasks").
-2. **APIs & Services → Library** → enable **Google Tasks API**.
-3. **Google Auth Platform → Branding/Audience** (OAuth consent screen): User type **External**,
-   fill in app name + your email. Under **Audience**, add yourself as a test user.
-4. **Clients → Create client** → type **Desktop app**. Copy the client ID and secret.
-5. **Audience → Publish app** ("In production"). *Important:* while the app is in
-   "Testing", Google expires refresh tokens after 7 days. Publishing doesn't need
-   verification for personal use — you'll just click through an "unverified app" warning.
+Google renames these screens from time to time, so labels may differ slightly.
 
-### 2. Get your refresh token (on your own computer)
+1. Create a project: <https://console.cloud.google.com/projectcreate> → name it
+   `Claude Tasks` → **Create**. Make sure it's selected in the project picker at the top.
+2. Enable the API: <https://console.cloud.google.com/apis/library/tasks.googleapis.com> → **Enable**.
+3. Set up the consent screen: <https://console.cloud.google.com/auth/overview> → **Get started** →
+   app name `Claude Tasks`, your email as support email → Audience **External** →
+   your email as contact → agree → **Create**.
+4. **Publish the app:** <https://console.cloud.google.com/auth/audience> → **Publish app** → **Confirm**.
+   *Don't skip this:* while the app is in "Testing", Google expires refresh tokens after 7 days.
+   Publishing doesn't need verification for personal use — you'll just click through an
+   "unverified app" warning.
+5. Create a client: <https://console.cloud.google.com/auth/clients> → **Create client** →
+   type **Web application** → under **Authorized redirect URIs** add
+   `https://developers.google.com/oauthplayground` → **Create**.
+   Copy the **Client ID** (ends in `.apps.googleusercontent.com`) and **Client secret**
+   (starts with `GOCSPX-`). These are `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+### 2. Get your refresh token (OAuth Playground)
+
+1. Open <https://developers.google.com/oauthplayground>.
+2. Click the **gear ⚙️** (top right) → check **Use your own OAuth credentials** → paste the
+   Client ID and Client secret. Make sure **Access type** is **Offline**.
+3. In **Step 1** on the left, type `https://www.googleapis.com/auth/tasks` into
+   **Input your own scopes** → **Authorize APIs**.
+4. Pick your Google account. On "Google hasn't verified this app" click
+   **Advanced → Go to Claude Tasks (unsafe) → Continue**.
+5. Back in the Playground, in **Step 2** click **Exchange authorization code for tokens**.
+   The page jumps to Step 3 — click the **Step 2** heading to reopen it and copy the
+   **Refresh token** (starts with `1//`). This is `GOOGLE_REFRESH_TOKEN`.
+
+Troubleshooting:
+
+- **"Access blocked: Authorization Error … The OAuth client was not found" (401 invalid_client):**
+  the Client ID is mistyped or swapped with the secret, or the client was just created —
+  wait ~10 minutes and try again.
+- **Refresh token box is empty:** you haven't exchanged the code yet, or the exchange failed —
+  read the response panel on the right. Authorization codes are single-use and expire in
+  minutes; on `invalid_grant`, click **Authorize APIs** again and exchange immediately.
+
+<details>
+<summary>Alternative: terminal script instead of the Playground</summary>
+
+Create a **Desktop app** client (instead of Web application) in step 1.5, then on your own
+computer run:
 
 ```bash
 GOOGLE_CLIENT_ID=xxx GOOGLE_CLIENT_SECRET=yyy npm run get-token
 ```
 
-Open the printed URL, approve access, and copy the `GOOGLE_REFRESH_TOKEN=...` line
-from the terminal.
+Open the printed URL, approve access, and copy the `GOOGLE_REFRESH_TOKEN=...` line.
+</details>
 
 ### 3. Deploy to Vercel
 
@@ -51,7 +86,8 @@ from the terminal.
    - `GOOGLE_CLIENT_ID`
    - `GOOGLE_CLIENT_SECRET`
    - `GOOGLE_REFRESH_TOKEN`
-   - `MCP_SECRET` — a long random string, e.g. `openssl rand -hex 32`
+   - `MCP_SECRET` — a long random string of letters and numbers (40+ characters),
+     e.g. from a password generator or `openssl rand -hex 32`
 3. Deploy. Make sure **Deployment Protection** doesn't cover your production domain
    (the default "Standard Protection" only protects previews, which is fine).
 
@@ -84,3 +120,5 @@ Tests mock Google's APIs, so no credentials are needed.
 
 - **Leaked connector URL:** change `MCP_SECRET` in Vercel, redeploy, and update the connector URL in Claude.
 - **Revoke Google access:** <https://myaccount.google.com/permissions> → remove the app, then rerun step 2.
+- **Connector suddenly stops working:** the refresh token was likely revoked or expired. Check the app is
+  still "In production" (step 1.4), get a new token (step 2), update `GOOGLE_REFRESH_TOKEN` in Vercel, and redeploy.
